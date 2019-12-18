@@ -9,7 +9,8 @@
         <script type="text/javascript" src="lib/main.js"></script>
     </head>
     <body>
-    	length of decoded buffer differs among browsers.<br>
+    	<span id="artist"></span><br>
+    	<span id="title"></span><br>
     	Decoded buffer length: <span id="len"></span> -> <span id="lennew"></span><br>
     	Decoded buffer duration: <span id="dur"></span> -> <span id="durnew"></span><br>
     	Decoded buffer sample rate: <span id="rate"></span> -> <span id="ratenew"></span><br>
@@ -19,8 +20,9 @@
 			document.getElementById("ver").innerText = navigator.userAgent;
 
 			var audio = new AudioContext();
+
 			let xhr = new XMLHttpRequest();
-			xhr.open("GET", "ramwire.mp3");
+			xhr.open("GET", "1.mp3");
 			xhr.responseType = 'blob';
 			xhr.onload = function() {
 				console.log('get blob', xhr.response);
@@ -30,6 +32,16 @@
 			    	console.log('reader result', buffer);
                     window.tags = mp3Parser.readTags(new DataView(buffer));
                     console.log("tags",tags);
+
+                    // show some metadata
+                    if (tags.length>0 && tags[0].frames)
+	                    for (let i=0; i<tags[0].frames.length; ++i)
+	                    	if (tags[0].frames[i].header.id == "TPE1")
+	                    		document.getElementById("artist").innerText = tags[0].frames[i].content.value;
+                    if (tags.length>0 && tags[0].frames)
+	                    for (let i=0; i<tags[0].frames.length; ++i)
+	                    	if (tags[0].frames[i].header.id == "TIT2")
+	                    		document.getElementById("title").innerText = tags[0].frames[i].content.value;
 
                     let newbuffer = buffer;
                     // chop out Xing/Info frame
@@ -64,6 +76,17 @@
 			    reader.readAsArrayBuffer(xhr.response);
 			}
 			xhr.send();
+
+			function play() {
+            	var source = audio.createBufferSource();
+            	source.buffer = window.newbuffer;
+            	source.connect(audio.destination);
+            	source.start();
+			}
+
+			document.getElementById("playbtn").onclick = function() {
+				play();
+			}
 		</script>
     </body>
 </html>
