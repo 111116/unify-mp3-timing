@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8"/>
+        <title>mp3 decode</title>
+        <script type="text/javascript" src="lib/lib.js"></script>
+        <script type="text/javascript" src="lib/xing.js"></script>
+        <script type="text/javascript" src="lib/id3v2.js"></script>
+        <script type="text/javascript" src="lib/main.js"></script>
+    </head>
+    <body>
+    	length of decoded buffer differs among browsers.<br>
+    	Decoded buffer length: <span id="len"></span> -> <span id="lennew"></span><br>
+    	Decoded buffer duration: <span id="dur"></span> -> <span id="durnew"></span><br>
+    	Decoded buffer sample rate: <span id="rate"></span> -> <span id="ratenew"></span><br>
+    	User Agent: <span id="ver"></span><br>
+    	<input type="button" id="playbtn" value="Play" hidden>
+		<script type="text/javascript">
+			document.getElementById("ver").innerText = navigator.userAgent;
+
+			var audio = new AudioContext();
+			let xhr = new XMLHttpRequest();
+			xhr.open("GET", "ramwire.mp3");
+			xhr.responseType = 'blob';
+			xhr.onload = function() {
+				console.log('get blob', xhr.response);
+			    let reader = new FileReader();
+			    reader.onload = function(e) {
+			    	let buffer = e.target.result;
+			    	console.log('reader result', buffer);
+                    window.tags = mp3Parser.readTags(new DataView(buffer));
+                    console.log("tags",tags);
+
+                    let newbuffer = buffer;
+                    // chop out Xing/Info frame
+                    if (tags.length == 3 && tags[1]._section.type == "Xing") {
+                    	let arr = new Uint8Array(buffer.byteLength - tags[1]._section.byteLength);
+                    	arr.set(new Uint8Array(buffer, 0, tags[1]._section.offset), 0);
+                    	let offsetAfter = tags[1]._section.offset + tags[1]._section.byteLength;
+                    	arr.set(new Uint8Array(buffer, offsetAfter, buffer.byteLength - offsetAfter), tags[0]._section.offset);
+                    	newbuffer = arr.buffer;
+                    }
+
+			        audio.decodeAudioData(buffer, function(decoded) {
+			            window.buffer = decoded;
+			            console.log("Audio decoded", window.buffer);
+			            document.getElementById("len").innerText = window.buffer.length.toString();
+			            document.getElementById("dur").innerText = window.buffer.duration.toString();
+			            document.getElementById("rate").innerText = window.buffer.sampleRate.toString();
+			        }, function(err) {
+			        	console.error("decodeAudioData failed");
+			        });
+			        audio.decodeAudioData(newbuffer, function(decoded) {
+			            window.newbuffer = decoded;
+			            console.log("Audio decoded", window.newbuffer);
+			            document.getElementById("lennew").innerText = window.newbuffer.length.toString();
+			            document.getElementById("durnew").innerText = window.newbuffer.duration.toString();
+			            document.getElementById("ratenew").innerText = window.newbuffer.sampleRate.toString();
+			            document.getElementById("playbtn").removeAttribute("hidden");
+			        }, function(err) {
+			        	console.error("decodeAudioData failed");
+			        });
+			    };
+			    reader.readAsArrayBuffer(xhr.response);
+			}
+			xhr.send();
+		</script>
+    </body>
+</html>
+
